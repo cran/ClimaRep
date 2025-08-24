@@ -2,23 +2,26 @@
 % Please edit documentation in R/mh_rep.R
 \name{mh_rep}
 \alias{mh_rep}
-\title{Multivariate Climate Representativeness Analysis}
+\title{Multivariate climate representativeness analysis}
 \usage{
 mh_rep(
   polygon,
   col_name,
   climate_variables,
+  study_area,
   th = 0.95,
   dir_output = file.path(tempdir(), "ClimaRep"),
   save_raw = FALSE
 )
 }
 \arguments{
-\item{polygon}{An \code{sf} object containing the defined areas. \strong{Must have the same CRS as} \code{climate_variables}.}
+\item{polygon}{An \code{sf} object containing the defined areas. \strong{Its CRS will be used as the reference system.}}
 
 \item{col_name}{\code{character}. Name of the column in the \code{polygon} object that contains unique identifiers for each polygon.}
 
-\item{climate_variables}{A \code{SpatRaster} stack of climate variables representing the conditions. Its CRS will be used as the reference system.}
+\item{climate_variables}{A \code{SpatRaster} stack of climate variables.}
+
+\item{study_area}{An \code{sf} object defining the study area. The analysis will be limited to this area.}
 
 \item{th}{\code{numeric} (0-1). Percentile threshold used to define representativeness. Cells with a Mahalanobis distance below or equal to the \code{th} are classified as representative (default: 0.95).}
 
@@ -35,18 +38,19 @@ Writes the following outputs to disk within subdirectories of \code{dir_output}:
 }
 }
 \description{
-This function calculates Mahalanobis-based Climate Representativeness for input polygon within a defined area.
+This function calculates Mahalanobis-based climate representativeness for input polygon within a defined area.
+
+The function categorizes cells based on how their climate representativeness, labeling them as Non-representative and Representative.
 
 Representativeness is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (\code{climate_variables}), with the climate conditions within each specific input \code{polygon}.
 }
 \details{
-This function performs a multivariate analysis using Mahalanobis distance to assess the Climate Representativeness of input \code{polygons} for a single time period.
+This function performs a multivariate analysis using Mahalanobis distance to assess the climate representativeness of input \code{polygons} for a single time period.
 
-Crucially, this function assumes that all spatial inputs (\code{polygon}, \code{climate_variables}) are already correctly aligned and share the same Coordinate Reference System (CRS). If inputs do not meet these criteria, the function will stop with an informative error.
-
-Here are the key steps:
+\strong{Key steps:}
 \enumerate{
-\item Checking of spatial inputs: Ensures that \code{polygon} and \code{climate_variables} have matching CRSs.
+\item Ensures that \code{climate_variables} and \code{study_area} have matching CRSs with \code{polygon} by automatically transforming them if needed. The CRS of \code{polygon} will be used as the reference system.
+\item Crops and masks the \code{climate_variables} raster to the \code{study_area} to limit all subsequent calculations to the area of interest.
 \item Calculate the multivariate covariance matrix using climate data from all cells.
 \item For each polygon in the \code{polygon} object:
 \itemize{
@@ -61,7 +65,7 @@ Here are the key steps:
 
 It is important to note that Mahalanobis distance is sensitive to collinearity among variables.
 While the covariance matrix accounts for correlations, it is strongly recommended that the \code{climate_variables} are not strongly correlated.
-Consider performing a collinearity analysis beforehand, perhaps using the \code{vif_filter} function from this package.
+Consider performing a collinearity analysis beforehand, perhaps using the \code{vif_filter()} function from this package.
 }
 \examples{
 library(terra)
@@ -98,13 +102,17 @@ hex_grid <- sf::st_sf(
 sf::st_crs(hex_grid) <- "EPSG:4326"
 polygons <- hex_grid[sample(nrow(hex_grid), 2), ]
 polygons$name <- c("Pol_A", "Pol_B")
+study_area_polygon <- sf::st_as_sf(terra::as.polygons(terra::ext(r_clim_present_filtered)))
+sf::st_crs(study_area_polygon) <- "EPSG:4326"
 terra::plot(r_clim_present_filtered[[1]])
 terra::plot(polygons, add = TRUE, color = "transparent", lwd = 3)
+terra::plot(study_area_polygon, add = TRUE, col = "transparent", lwd = 3, border = "red")
 
 ClimaRep::mh_rep(
    polygon = polygons,
    col_name = "name",
    climate_variables = r_clim_present_filtered,
+   study_area = study_area_polygon,
    th = 0.95,
    dir_output = file.path(tempdir(), "ClimaRep"),
    save_raw = TRUE

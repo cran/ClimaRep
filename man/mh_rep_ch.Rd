@@ -2,7 +2,7 @@
 % Please edit documentation in R/mh_rep_ch.R
 \name{mh_rep_ch}
 \alias{mh_rep_ch}
-\title{Multivariate Temporal Climate Representativeness Change Analysis}
+\title{Multivariate temporal climate tepresentativeness change analysis}
 \usage{
 mh_rep_ch(
   polygon,
@@ -18,15 +18,15 @@ mh_rep_ch(
 )
 }
 \arguments{
-\item{polygon}{An \code{sf} object containing the defined areas. \strong{Must have the same CRS as} \code{present_climate_variables}.}
+\item{polygon}{An \code{sf} object containing the defined areas. \strong{Its CRS will be used as the reference system.}}
 
 \item{col_name}{\code{character}. Name of the column in the \code{polygon} object that contains unique identifiers for each polygon.}
 
-\item{present_climate_variables}{A \code{SpatRaster} stack of climate variables representing present conditions. Its CRS will be used as the reference system.}
+\item{present_climate_variables}{A \code{SpatRaster} stack of climate variables representing current conditions.}
 
-\item{future_climate_variables}{A \code{SpatRaster} stack containing the same climate variables as \code{present_climate_variables} but representing future projected conditions. \strong{Must have the same CRS, extent, and resolution as} \code{present_climate_variables}.}
+\item{future_climate_variables}{A \code{SpatRaster} stack containing the same climate variables as \code{present_climate_variables} but representing future projected conditions.}
 
-\item{study_area}{A single \code{sf} polygon. \strong{Must have the same CRS as} \code{present_climate_variables}.}
+\item{study_area}{A single \code{sf} polygon.}
 
 \item{th}{\code{numeric} (0-1). Percentile threshold used to define representativeness. Cells with a Mahalanobis distance below or equal to the \code{th} are classified as representative (default: 0.95).}
 
@@ -47,9 +47,9 @@ Writes the following outputs to disk within subdirectories of \code{dir_output}:
 }
 }
 \description{
-This function calculates Mahalanobis-based Climate Representativeness (or forward climate analogs) for input polygon across two time periods (present and future) within a defined area.
+This function calculates Mahalanobis-based climate representativeness (or forward climate analogs) for input polygon across two time periods (present and future) within a defined area.
 
-The function identifies areas of climate representativeness \strong{Retained}, \strong{Lost}, or \strong{Novel}.
+The function categorizes cells based on how their climate representativeness changes, labeling them as Retained, Lost, or Novel.
 
 Representativeness is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (\code{present_climate_variables} and \code{future_climate_variables}), with the climate conditions within each specific input \code{polygon}.
 }
@@ -57,25 +57,24 @@ Representativeness is assessed by comparing the multivariate climate conditions 
 This function extends the approach used in \code{mh_rep} to assess Changes in Climate Representativeness (or forward climate analogs) over time.
 While \code{mh_rep()} calculates representativeness in a single scenario, \code{mh_rep_ch()} adapts this by using the mean from the present polygon but a covariance matrix derived from the overall climate space across both present and future periods combined.
 
-Crucially, this function assumes that all spatial inputs (\code{polygon}, \code{present_climate_variables}, \code{future_climate_variables}, \code{study_area}) are already correctly aligned and share the same Coordinate Reference System (CRS) and consistent spatial properties (extent, resolution). If inputs do not meet these criteria, the function will stop with an informative error.
-
 Here are the key steps:
 \enumerate{
-\item Checking of spatial inputs: Ensures that \code{present_climate_variables}, \code{future_climate_variables}, \code{polygon}, and \code{study_area} all have matching CRSs, and that \code{present_climate_variables} and \code{future_climate_variables} share identical extents and resolutions.
-\item Calculate the multivariate covariance matrix using climate data from all cells for both present and future time periods combined.
+\item Checking CRS: Ensures that \code{future_climate_variables}, \code{climate_variables}, and \code{study_area} have matching CRSs with \code{polygon} by automatically transforming them if needed. The CRS of \code{polygon} will be used as the reference system.
+\item Crops and masks the \code{climate_variables} and \code{future_climate_variables} raster to the \code{study_area} to limit all subsequent calculations to the area of interest.
+\item Calculate the multivariate covariance matrix using climate data from all cells for both present and present-future time periods combined.
 \item For each polygon in the \code{polygon} object:
 \itemize{
-\item Crop and mask the current climate variables raster (\code{present_climate_variables}) to the boundary of the current polygon.
+\item Crop and mask the present climate variables raster (\code{present_climate_variables}) to the boundary of the current polygon.
 \item Calculate the multivariate mean using the climate data from the previous step. This defines the climate centroid for the current polygon.
-Calculate the Mahalanobis distance for each cell relative to the centroid and the overall present and future covariance matrix.
+Calculate the Mahalanobis distance for each cell relative to the centroid and the overall present and present-future covariance matrix.
 This results in a Mahalanobis distance raster for the present period and another for the future period.
 \item Apply the specified threshold (\code{th}) to Mahalanobis distances to determine which cells are considered representative. This threshold is a percentile of the Mahalanobis distances within the current polygon.
 \item Classify each cells, for both present and future periods, as Representative = \code{1} (Mahalanobis distance \eqn{\le} \code{th}) or Non-Representative = \code{0} (Mahalanobis distance $>$ \code{th}).
 }
 \item Compares the binary representativeness of each cell between the present and future periods and determines cells where conditions are:
 \itemize{
-\item \code{0}: \strong{Non-represented}: Cells that are outside the defined Mahalanobis threshold in both present and future periods.
-\item \code{1}: \strong{Retained}: Cells that are within the defined Mahalanobis threshold in both present and future periods.
+\item \code{0}: \strong{Non-representative}: Cells that are outside the defined Mahalanobis threshold in both present and future periods.
+\item \code{1}: \strong{Retained}: Cells that are within the defined Mahalanobis threshold in both present and future periods. \strong{Representative} if \code{Climarep::mh_rep()} is used
 \item \code{2}: \strong{Lost}: Cells that are within the defined Mahalanobis threshold in the present period but outside it in the future period.
 \item \code{3}: \strong{Novel}: Cells that are outside the defined Mahalanobis threshold in the present period but within it in the future period.
 }
@@ -85,7 +84,7 @@ All files are saved using the \code{model} and \code{year} parameters for better
 
 It is important to note that Mahalanobis distance assumes is sensitive to collinearity among variables.
 While the covariance matrix accounts for correlations, it is strongly recommended that the climate variables (\code{present_climate_variables}) are not strongly correlated.
-Consider performing a collinearity analysis beforehand, perhaps using the \code{vif_filter} function from this package.
+Consider performing a collinearity analysis beforehand, perhaps using the \code{vif_filter()} function from this package.
 }
 \examples{
 library(terra)

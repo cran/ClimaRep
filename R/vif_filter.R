@@ -1,69 +1,56 @@
-#' @title Filter SpatRaster Layers based on Variance Inflation Factor (VIF)
+#' @title Filter SpatRaster layers based on Variance Inflation Factor (VIF)
 #'
 #' @description This function iteratively filters layers from a `SpatRaster` object by removing the one with the highest Variance Inflation Factor (VIF) that exceeds a specified threshold (`th`).
 #'
 #' @param x A `SpatRaster` object containing the layers (variables) to filter. Must contain two or more layers.
 #' @param th A `numeric` value specifying the Variance Inflation Factor (VIF) threshold. Layers whose VIF exceeds this threshold are candidates for removal in each iteration (default: 5).
 #'
-#' @return A `SpatRaster` object containing only the layers retained by the VIF filtering process.
+#' @return A `list` object containing the filtered `SpatRaster` and a summary of the filtering process.
 #'
-#' @details This function implements a common iterative procedure to reduce multicollinearity among raster layers by removing variables with high Variance Inflation Factor (VIF).
-#' The VIF for a specific predictor indicates how much the variance of its estimated coefficient is inflated due to its linear relationships with all other predictors in the model.
-#' Conceptually, it is based on the proportion of variance that predictor shares with the other independent variables.
-#' A high VIF value suggests a high degree of collinearity with other predictors (values exceeding `5` or `10` are often considered problematic; see O'Brien, 2007).
-#' In this context, the function also provides the Pearson correlation matrix between all initial variables.
+#' @details This function implements a common iterative procedure to reduce multicollinearity among raster layers by removing variables with a high Variance Inflation Factor (VIF).
+#' The VIF for a specific predictor indicates how much the variance of its estimated coefficient is inflated due to its linear relationships with all other predictors in the model. A high VIF value suggests a high degree of collinearity with other predictors (values exceeding `5` or `10` are often considered problematic; see O'Brien, 2007; Legendre & Legendre, 2012).
 #'
-#' Key steps:
+#' **The filtering process is fully automated and robust:**
+#'
 #' \enumerate{
-#'    \item Validate inputs: Ensures `x` is a `SpatRaster` with at least two layers and `th` is a valid `numeric` value.
-#'    \item Convert the input `SpatRaster` (`x`) to a `data.frame`, retaining only unique rows if `x` has many cells and few unique climate values.
-#'    \item Remove rows containing any `NA` values across all variables from the `data.frame`.
-#'    \item In each iteration, calculate the VIF for all variables currently remaining in the dataset.
-#'    \item Identify the variable with the highest VIF among the remaining variables.
-#'    \item If this highest VIF value is greater than the threshold (`th`), remove the variable with the highest VIF from the dataset, and the loop continues with the remaining variables.
-#'    \item This iterative process repeats until the highest VIF among the remaining variables is less than or equal to \eqn{\le} `th`, or until only one variable remains in the dataset.
+#' \item Validates the input and converts the `SpatRaster` to a `data.frame` for calculations.
+#' \item In each step, the function attempts to calculate VIF efficiently using matrix inversion. If perfect collinearity is detected (resulting in a singular matrix that cannot be inverted), the function automatically switches to a more robust method based on linear regressions to handle the situation without an error.
+#' \item The function identifies the variable with the highest VIF among the remaining variables. If its VIF is greater than the threshold (`th`), that variable is removed. The process repeats until all remaining variables are below the threshold or until only one variable remains.
 #' }
-#'The output of `vif_filter` returns a `list` object with a filtered `SpatRaster` object and a statistics summary.
 #'
-#'The `SpatRaster` object containing only the variables that were kept and also provides a comprehensive summary printed to the console.
-#'The summary list including:
+#' The output is a `list` containing two main components:
 #' \itemize{
-#' \item The original Pearson's correlation matrix between all initial variables.
-#' \item The variables names that were kept and those that were excluded.
-#' \item The final VIF values for the variables retained after the process.
+#' \item `SpatRaster` object with the variables that were retained after the filtering process.
+#' \item A list with a detailed summary of the process, including the names of the kept and excluded variables, the original Pearson's correlation matrix, and the final VIF values for the retained variables.
 #' }
-#'
-#' The internal VIF calculation includes checks to handle potential numerical
-#' instability, such as columns with zero or near-zero variance and cases of
-#' perfect collinearity among variables, which could otherwise lead to errors
-#' (e.g., infinite VIFs or issues with matrix inversion). Variables identified
-#' as having infinite VIF due to perfect collinearity are prioritized for removal.
+#' The internal VIF calculation includes checks to handle potential numerical instability, such as columns with zero or near-zero variance and cases of perfect collinearity among variables,
+#' which could otherwise lead to errors (e.g., infinite VIFs). Variables identified as having infinite VIF due to perfect collinearity are prioritized for removal.
 #'
 #' References:
-#' O’brien (2007) A Caution Regarding Rules of Thumb for Variance Inflation Factors. Quality & Quantity, 41: 673–690. doi:10.1007/s11135-006-9018-6
+#' O’Brien (2007) A caution regarding rules of thumb for variance inflation factors. Quality & Quantity, 41(5), 673–690. https://doi.org/10.1007/s11135-006-9018-6
+#' Legendre & Legendre (2012) Interpretation of ecological structures. In P. Legendre & L. Legendre (Eds.), *Developments in Environmental Modelling* (Vol. 24, pp. 521-624). Elsevier. https://doi.org/10.1016/B978-0-444-53868-0.50010-1
 #'
 #' @importFrom terra as.data.frame subset rast
 #' @importFrom stats cov var lm as.formula cor
 #'
 #' @examples
 #' library(terra)
-#' library(sf)
 #'
 #' set.seed(2458)
 #' n_cells <- 100 * 100
 #' r_clim <- terra::rast(ncols = 100, nrows = 100, nlyrs = 7)
 #' values(r_clim) <- c(
-#'    (rowFromCell(r_clim, 1:n_cells) * 0.2 + rnorm(n_cells, 0, 3)),
-#'    (rowFromCell(r_clim, 1:n_cells) * 0.9 + rnorm(n_cells, 0, 0.2)),
-#'    (colFromCell(r_clim, 1:n_cells) * 0.15 + rnorm(n_cells, 0, 2.5)),
-#'    (colFromCell(r_clim, 1:n_cells) +
-#'      (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
-#'    (colFromCell(r_clim, 1:n_cells) /
-#'      (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
-#'    (colFromCell(r_clim, 1:n_cells) *
-#'      (rowFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))),
-#'    (colFromCell(r_clim, 1:n_cells) *
-#'      (colFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))))
+#'   (rowFromCell(r_clim, 1:n_cells) * 0.2 + rnorm(n_cells, 0, 3)),
+#'   (rowFromCell(r_clim, 1:n_cells) * 0.9 + rnorm(n_cells, 0, 0.2)),
+#'   (colFromCell(r_clim, 1:n_cells) * 0.15 + rnorm(n_cells, 0, 2.5)),
+#'   (colFromCell(r_clim, 1:n_cells) +
+#'     (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
+#'   (colFromCell(r_clim, 1:n_cells) /
+#'     (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
+#'   (colFromCell(r_clim, 1:n_cells) *
+#'     (rowFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))),
+#'   (colFromCell(r_clim, 1:n_cells) *
+#'     (colFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))))
 #' names(r_clim) <- c("varA", "varB", "varC", "varD", "varE", "varF", "varG")
 #' terra::crs(r_clim) <- "EPSG:4326"
 #' terra::plot(r_clim)
@@ -82,97 +69,72 @@ vif_filter <- function(x, th = 5) {
   }
   original_raster <- x
   x_df <- terra::as.data.frame(x, na.rm = TRUE)
-  original_cor_matrix <- NULL
-  if (ncol(x_df) > 1) {
-    original_cor_matrix <- round(cor(x_df, method = "pearson"), 4)
-  } else {
-    original_cor_matrix <- "Correlation matrix not applicable (less than 2 variables)."
-  }
-  calc_vif <- function(df) {
-    if (ncol(df) <= 1) {
-      return(numeric(0))
-    }
-    variances <- apply(df, 2, var, na.rm = TRUE)
-    cols_zero_var <- names(variances[variances < .Machine$double.eps^0.5])
-    if (length(cols_zero_var) > 0) {
-      warning(
-        "Removing columns with zero or near-zero variance during VIF calculation: ",
-        paste(cols_zero_var, collapse = ", ")
-      )
-      df <- df[, !(colnames(df) %in% cols_zero_var), drop = FALSE]
-      if (ncol(df) <= 1) {
-        return(numeric(0))
+  calc_vif_robust <- function(df) {
+    if (ncol(df) <= 1) return(numeric(0))
+    tryCatch({
+      cor_matrix <- cor(df, use = "pairwise.complete.obs")
+      vif_values <- diag(solve(cor_matrix))
+      names(vif_values) <- colnames(df)
+      return(vif_values)
+    },
+    error = function(e) {
+      if (grepl("singular", e$message)) {
+        message("Perfect collinearity detected. Switching to the regression method for VIF calculation.")
+        vif_values <- sapply(names(df), function(name) {
+          model <- try(stats::lm(as.formula(paste(name, "~ .")), data = df), silent = TRUE)
+          if (inherits(model, "try-error") || summary(model)$r.squared >= 1) {
+            return(Inf)
+          }
+          1 / (1 - summary(model)$r.squared)
+        })
+        names(vif_values) <- names(df)
+        return(vif_values)
+      } else {
+        stop(e)
       }
-    }
-    vif_values <- sapply(1:ncol(df), function(i) {
-      model <- try(stats::lm(as.formula(paste(names(df)[i], "~ .")), data = df), silent = TRUE)
-      if (inherits(model, "try-error") ||
-          is.null(summary(model)$r.squared) ||
-          is.na(summary(model)$r.squared) ||
-          summary(model)$r.squared >= 1) {
-        return(Inf)
-      }
-      vif <- 1 / (1 - summary(model)$r.squared)
-      if (is.infinite(vif)) {
-        return(Inf)
-      }
-      return(vif)
     })
-    names(vif_values) <- colnames(df)
-    return(vif_values)
   }
-  exc <- character(0)
+  message("Starting iterative VIF filtering process")
   kept_vars <- colnames(x_df)
+  excluded_vars <- character(0)
   while (length(kept_vars) > 1) {
     df_subset <- x_df[, kept_vars, drop = FALSE]
-    v <- calc_vif(df_subset)
-    if (length(v) == 0 || all(v < th)) {
+    v <- calc_vif_robust(df_subset)
+    if (any(is.infinite(v))) {
+      max_vif_name <- names(v)[which(is.infinite(v))[1]]
+      kept_vars <- setdiff(kept_vars, max_vif_name)
+      excluded_vars <- c(excluded_vars, max_vif_name)
+      message(paste(" - Removing variable with infinite VIF:", max_vif_name))
+      next
+    }
+    if (all(v < th)) {
       break
     }
-    max_v_val <- max(v, na.rm = TRUE)
-    if (is.infinite(max_v_val)) {
-      ex <- names(v)[which(is.infinite(v))[1]]
+    max_vif_name <- names(v)[which.max(v)]
+    if (v[max_vif_name] > th) {
+      kept_vars <- setdiff(kept_vars, max_vif_name)
+      excluded_vars <- c(excluded_vars, max_vif_name)
+      message(paste(" - Removing variable with highest VIF (", round(v[max_vif_name], 2), "):", max_vif_name))
     } else {
-      ex <- names(v)[which.max(v)]
-    }
-    if (ex %in% exc) {
-      warning("Variable ",
-              ex,
-              " with max VIF already in excluded list. Breaking loop.")
       break
     }
-    exc <- c(exc, ex)
-    kept_vars <- kept_vars[!(kept_vars %in% ex)]
   }
-  final_vif_data <- NULL
-  kept_df_subset <- x_df[, kept_vars, drop = FALSE]
-  if (length(kept_vars) > 0) {
-    if (length(kept_vars) > 1) {
-      final_vif_values <- round(calc_vif(kept_df_subset), 4)
-      if (length(final_vif_values) > 0) {
-        final_vif_data <- data.frame(VIF = final_vif_values)
-      } else {
-        final_vif_data <- "Could not calculate VIFs for kept variables (e.g., perfect collinearity remaining or insufficient variables after zero-variance removal)."
-      }
-    } else {
-      final_vif_data <- "Only one variable kept. VIF calculation not applicable."
-    }
+  message("VIF filtering process completed")
+  final_vif_values <- NULL
+  if (length(kept_vars) > 1) {
+    final_vif_values <- round(calc_vif_robust(x_df[, kept_vars, drop = FALSE]), 4)
+  } else if (length(kept_vars) == 1) {
+    final_vif_values <- "Only one variable was kept. VIF calculation is not applicable."
   } else {
-    final_vif_data <- "No variables kept."
+    final_vif_values <- "No variables were kept."
   }
-
+  original_cor_matrix <- round(cor(x_df, method = "pearson"), 4)
   results_summary <- list(
     kept_layers = kept_vars,
-    excluded_layers = exc,
+    excluded_layers = excluded_vars,
     original_correlation_matrix = original_cor_matrix,
-    final_vif_values = final_vif_data
+    final_vif_values = final_vif_values
   )
-  if (length(kept_vars) == 0) {
-    warning("All variables were excluded. Returning an empty SpatRaster.")
-    filtered_raster <- original_raster[[character(0)]]
-  } else {
-    filtered_raster <- subset(original_raster, kept_vars)
-  }
-  message("All processes were completed")
+  filtered_raster <- if (length(kept_vars) > 0) subset(original_raster, kept_vars) else original_raster[[character(0)]]
   return(list(filtered_raster = filtered_raster, summary = results_summary))
 }

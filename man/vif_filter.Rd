@@ -2,7 +2,7 @@
 % Please edit documentation in R/vif_filter.R
 \name{vif_filter}
 \alias{vif_filter}
-\title{Filter SpatRaster Layers based on Variance Inflation Factor (VIF)}
+\title{Filter SpatRaster layers based on Variance Inflation Factor (VIF)}
 \usage{
 vif_filter(x, th = 5)
 }
@@ -12,66 +12,53 @@ vif_filter(x, th = 5)
 \item{th}{A \code{numeric} value specifying the Variance Inflation Factor (VIF) threshold. Layers whose VIF exceeds this threshold are candidates for removal in each iteration (default: 5).}
 }
 \value{
-A \code{SpatRaster} object containing only the layers retained by the VIF filtering process.
+A \code{list} object containing the filtered \code{SpatRaster} and a summary of the filtering process.
 }
 \description{
 This function iteratively filters layers from a \code{SpatRaster} object by removing the one with the highest Variance Inflation Factor (VIF) that exceeds a specified threshold (\code{th}).
 }
 \details{
-This function implements a common iterative procedure to reduce multicollinearity among raster layers by removing variables with high Variance Inflation Factor (VIF).
-The VIF for a specific predictor indicates how much the variance of its estimated coefficient is inflated due to its linear relationships with all other predictors in the model.
-Conceptually, it is based on the proportion of variance that predictor shares with the other independent variables.
-A high VIF value suggests a high degree of collinearity with other predictors (values exceeding \code{5} or \code{10} are often considered problematic; see O'Brien, 2007).
-In this context, the function also provides the Pearson correlation matrix between all initial variables.
+This function implements a common iterative procedure to reduce multicollinearity among raster layers by removing variables with a high Variance Inflation Factor (VIF).
+The VIF for a specific predictor indicates how much the variance of its estimated coefficient is inflated due to its linear relationships with all other predictors in the model. A high VIF value suggests a high degree of collinearity with other predictors (values exceeding \code{5} or \code{10} are often considered problematic; see O'Brien, 2007; Legendre & Legendre, 2012).
 
-Key steps:
+\strong{The filtering process is fully automated and robust:}
+
 \enumerate{
-\item Validate inputs: Ensures \code{x} is a \code{SpatRaster} with at least two layers and \code{th} is a valid \code{numeric} value.
-\item Convert the input \code{SpatRaster} (\code{x}) to a \code{data.frame}, retaining only unique rows if \code{x} has many cells and few unique climate values.
-\item Remove rows containing any \code{NA} values across all variables from the \code{data.frame}.
-\item In each iteration, calculate the VIF for all variables currently remaining in the dataset.
-\item Identify the variable with the highest VIF among the remaining variables.
-\item If this highest VIF value is greater than the threshold (\code{th}), remove the variable with the highest VIF from the dataset, and the loop continues with the remaining variables.
-\item This iterative process repeats until the highest VIF among the remaining variables is less than or equal to \eqn{\le} \code{th}, or until only one variable remains in the dataset.
+\item Validates the input and converts the \code{SpatRaster} to a \code{data.frame} for calculations.
+\item In each step, the function attempts to calculate VIF efficiently using matrix inversion. If perfect collinearity is detected (resulting in a singular matrix that cannot be inverted), the function automatically switches to a more robust method based on linear regressions to handle the situation without an error.
+\item The function identifies the variable with the highest VIF among the remaining variables. If its VIF is greater than the threshold (\code{th}), that variable is removed. The process repeats until all remaining variables are below the threshold or until only one variable remains.
 }
-The output of \code{vif_filter} returns a \code{list} object with a filtered \code{SpatRaster} object and a statistics summary.
 
-The \code{SpatRaster} object containing only the variables that were kept and also provides a comprehensive summary printed to the console.
-The summary list including:
+The output is a \code{list} containing two main components:
 \itemize{
-\item The original Pearson's correlation matrix between all initial variables.
-\item The variables names that were kept and those that were excluded.
-\item The final VIF values for the variables retained after the process.
+\item \code{SpatRaster} object with the variables that were retained after the filtering process.
+\item A list with a detailed summary of the process, including the names of the kept and excluded variables, the original Pearson's correlation matrix, and the final VIF values for the retained variables.
 }
-
-The internal VIF calculation includes checks to handle potential numerical
-instability, such as columns with zero or near-zero variance and cases of
-perfect collinearity among variables, which could otherwise lead to errors
-(e.g., infinite VIFs or issues with matrix inversion). Variables identified
-as having infinite VIF due to perfect collinearity are prioritized for removal.
+The internal VIF calculation includes checks to handle potential numerical instability, such as columns with zero or near-zero variance and cases of perfect collinearity among variables,
+which could otherwise lead to errors (e.g., infinite VIFs). Variables identified as having infinite VIF due to perfect collinearity are prioritized for removal.
 
 References:
-O’brien (2007) A Caution Regarding Rules of Thumb for Variance Inflation Factors. Quality & Quantity, 41: 673–690. doi:10.1007/s11135-006-9018-6
+O’Brien (2007) A caution regarding rules of thumb for variance inflation factors. Quality & Quantity, 41(5), 673–690. https://doi.org/10.1007/s11135-006-9018-6
+Legendre & Legendre (2012) Interpretation of ecological structures. In P. Legendre & L. Legendre (Eds.), \emph{Developments in Environmental Modelling} (Vol. 24, pp. 521-624). Elsevier. https://doi.org/10.1016/B978-0-444-53868-0.50010-1
 }
 \examples{
 library(terra)
-library(sf)
 
 set.seed(2458)
 n_cells <- 100 * 100
 r_clim <- terra::rast(ncols = 100, nrows = 100, nlyrs = 7)
 values(r_clim) <- c(
-   (rowFromCell(r_clim, 1:n_cells) * 0.2 + rnorm(n_cells, 0, 3)),
-   (rowFromCell(r_clim, 1:n_cells) * 0.9 + rnorm(n_cells, 0, 0.2)),
-   (colFromCell(r_clim, 1:n_cells) * 0.15 + rnorm(n_cells, 0, 2.5)),
-   (colFromCell(r_clim, 1:n_cells) +
-     (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
-   (colFromCell(r_clim, 1:n_cells) /
-     (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
-   (colFromCell(r_clim, 1:n_cells) *
-     (rowFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))),
-   (colFromCell(r_clim, 1:n_cells) *
-     (colFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))))
+  (rowFromCell(r_clim, 1:n_cells) * 0.2 + rnorm(n_cells, 0, 3)),
+  (rowFromCell(r_clim, 1:n_cells) * 0.9 + rnorm(n_cells, 0, 0.2)),
+  (colFromCell(r_clim, 1:n_cells) * 0.15 + rnorm(n_cells, 0, 2.5)),
+  (colFromCell(r_clim, 1:n_cells) +
+    (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
+  (colFromCell(r_clim, 1:n_cells) /
+    (rowFromCell(r_clim, 1:n_cells)) * 0.1 + rnorm(n_cells, 0, 4)),
+  (colFromCell(r_clim, 1:n_cells) *
+    (rowFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))),
+  (colFromCell(r_clim, 1:n_cells) *
+    (colFromCell(r_clim, 1:n_cells) + 0.1 + rnorm(n_cells, 0, 4))))
 names(r_clim) <- c("varA", "varB", "varC", "varD", "varE", "varF", "varG")
 terra::crs(r_clim) <- "EPSG:4326"
 terra::plot(r_clim)

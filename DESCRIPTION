@@ -1,6 +1,6 @@
 Package: ClimaRep
 Title: Estimating Climate Representativeness
-Version: 0.6
+Version: 0.7
 Authors@R: 
     person(given = "Mario", 
     family = "Mingarro Lopez", 
@@ -15,9 +15,9 @@ Suggests: testthat (>= 3.0.0)
 Imports: ggplot2, terra, utils, stats, sf, tidyterra
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2025-06-24 11:38:33 UTC; mario
+Packaged: 2025-08-24 09:55:54 UTC; mario
 Author: Mario Mingarro Lopez [aut, cre] (ORCID:
     <https://orcid.org/0000-0003-3977-7944>)
 Maintainer: Mario Mingarro Lopez <mario_mingarro@mncn.csic.es>
 Repository: CRAN
-Date/Publication: 2025-06-27 13:30:13 UTC
+Date/Publication: 2025-08-24 10:50:02 UTC
