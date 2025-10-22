@@ -9,18 +9,18 @@
 
 ## Overview
 
-The `ClimaRep` package offers tools to analyze the climate representativeness of defined areas, assessing current conditions and evaluating how they are projected to change under future climate change scenarios. 
-Using spatial data, including climate raster layers, the input area polygons, and a polygon of the study area, the package quantifies this representativeness and analyzes its transformation.
+The `ClimaRep` package offers tools to analyze the climate representativeness of defined areas, assessing current conditions and evaluating how they are projected to change under future scenarios. 
+Using spatial data, including climate raster layers, the input reference area polygons, and a polygon of the study area, the package quantifies this representativeness and analyzes its transformation.
 
 Key features include:
-* Filtering raster climate variables to reduce multicollinearity (`vif_filter`).
-* Estimating current climate representativeness (`mh_rep`).
-* Estimating changes in climate representativeness under future climate projections (`mh_rep_ch`).
-* Estimating climate representativeness overlay (`rep_overlay`).
+* Filtering raster climate variables to reduce multicollinearity (`ClimaRep::vif_filter()`).
+* Estimating current climate representativeness (`ClimaRep::mh_rep()`).
+* Estimating changes in climate representativeness under future climate projections (`ClimaRep::mh_rep_ch()`).
+* Estimating climate representativeness overlay (`ClimaRep::rep_overlay()`).
 
 ## Installation
 
-You can install the development version of ClimaRep from CRAN with:
+You can install the development version of `ClimaRep` from CRAN with:
 ```{r}
 install.packages("ClimaRep")
 ```
@@ -44,7 +44,7 @@ This package relies on other R packages, such as:
 
 These dependencies will be installed automatically when you install `ClimaRep`.
 
-## Getting Started
+## Getting started
 
 This section provides a brief example demonstrating the core workflow of the package.
 
@@ -62,13 +62,15 @@ Next, prepare the essential input data:
 
 1. **Climate variables** as an `SpatRaster` objects with consistent extent, resolution, and Coordinate Reference System (CRS).
 
-2. **Polygon** as an `sf` object containing one or more polygons, with a column identifying each distinct area (e.g., a 'name' or 'ID' column).
+2. **Polygon** as an `sf` object containing one or more polygons, with a column identifying each reference area (e.g., a 'name' or 'ID' column).
 
 3. **Study area** as a single `sf` object, representing the overall geographical region for analysis and thus the climate space being worked on.
 
 
 Here is a practical example using simulated data:
-The example simulates a pair of defined input areas and assesses their climate representativeness and transformation within a defined climate space. 
+
+The example simulates a pair of reference `polygon` and assesses their climate representativeness and change, based on Mahalanobis Distance.
+
 This involves creating a simulated climate space within which the analysis is performed.
 
 Generate simulated climate raster layers:
@@ -95,23 +97,21 @@ terra::plot(r_clim_present)
 ```
 <img src="man/figures/F_1.jpeg" alt="Climate layers" width="600">
 
-*Figure 1: Example of simulated climate raster layers (r_clim_present).*
+*Figure 1: Example of simulated climate raster layers (`r_clim_present`).*
 
 
-### 1. Filter Climate Variables
+### 1. Filter climate variables
 
-A crucial first step in processing the climate variables is often to address multicollinearity. Multicollinearity among climate variables can affect multivariate analyses.
+Multicollinearity among climate variables can affect multivariate analyses.
 
-To handle this, the `vif_filter` function can be used to iteratively remove variables with a Variance Inflation Factor (VIF) above a specified threshold (e.g., `th = 5`).
+To handle this, the `ClimaRep::vif_filter()` function can be used to iteratively remove variables with a Variance Inflation Factor (VIF) above a specified threshold (e.g., `th = 5`).
 
-The output of `vif_filter` returns a `list` object with a filtered `SpatRaster` object and a statistics summary. 
-
-The `SpatRaster` object, containing only the variables that were kept, also provides a comprehensive summary printed to the console. 
-
-The summary list including:
-- The lists of variables that were kept and those that were excluded.
-- The original Pearson's correlation matrix between all initial variables.
-- The final VIF values for the variables that were retained after the filtering process.
+The output returns a `list` object with:
+- A filtered `SpatRaster` object containing only the variables that were kept 
+- A comprehensive statistics summary `list` including:
+  - The name of variables that were kept and those that were excluded.
+  - The original Pearson's correlation matrix between all initial variables.
+  - The final VIF values for the variables that were retained.
 
 
 ```{r}
@@ -144,10 +144,10 @@ terra::plot(r_clim_present_filtered)
 ```
 <img src="man/figures/F_2.jpeg" alt="Filtered Climate layers" width="600">
 
-*Figure 2: Example of filtered climate dataset, showing remaining variables (r_clim_present_filtered) after vif_filter() function.*
+*Figure 2: Example of filtered climate dataset, showing remaining variables (`r_clim_present_filtered`) after `ClimaRep::vif_filter()`.*
 
-### 2. Estimate Climate Representativeness.
-Create example input area `polygon` (`sf`) and a `study_area` polygon (`sf`) to define the region and climate space for analysis:
+### 2. Estimate climate representativeness
+Create example reference `polygon` (`sf`) to estimate climate representativeness and a `study_area` polygon (`sf`) to set the climate space for analysis:
 ```{r}
 hex_grid <- sf::st_sf(
   sf::st_make_grid(
@@ -167,13 +167,14 @@ terra::plot(study_area_polygon, add = TRUE, col = "transparent", lwd = 3, border
 ```
 <img src="man/figures/F_3.jpeg" alt="polygon" width="600">
 
-*Figure 3: Example of input polygons (black outline) and study area (red outline) overlaid on a climate raster layer.*
+*Figure 3: Example of reference polygons (black outline) and study area (red outline) overlaid on `r_clim_present_filtered[[1]]`.*
 
-Use `mh_rep` to estimate **Climate Representativeness** for each input `polygon`. 
+Use `ClimaRep::mh_rep()` to estimate climate representativeness for each reference `polygon`. 
 
-The function calculates the Mahalanobis distance from the multivariate centroid of climate conditions within each `polygon` to all cells in the `study_area`. 
+The function calculates the Mahalanobis Distance from the multivariate centroid of climate conditions within each reference `polygon` to all cells in the `study_area`. 
 
-Cells within a certain percentile threshold (`th`) of distances found within the input `polygon` are considered representative.
+Cells within a certain percentile threshold (`th`) of distances found within the reference `polygon` are considered representative of the climate of the `polygon`.
+
 ```{r}
 mh_rep(
   polygon = polygons,
@@ -204,7 +205,7 @@ list.files(tempdir())
  [1] "Charts"             "Mh_Raw"             "Representativeness"
 ```
 
-1. The `Charts` subfolder contains the **binary representativeness** image files (`.jpeg`) for each input `polygon`.
+1. The `Charts` subfolder contains the binary representativeness image files (`.jpeg`) for each reference `polygon`.
 
 ```{r}
 list.files(file.path(tempdir(), "Charts"))
@@ -214,8 +215,9 @@ list.files(file.path(tempdir(), "Charts"))
 
 *Figure 4: Example of binary representativeness map for Pol_1 (pol_1_rep.jpeg).*
 
-2. The `Mh_raw` subfolder contains the **continuous Mahalanobis distance** rasters (`.tif`) for each input `polygon`. 
-Lower values indicate climates more similar to the polygon's centroid.
+2. The `Mh_raw` subfolder contains the continuous Mahalanobis Distance rasters (`.tif`) for each reference `polygon`. 
+
+Lower values indicate climates more similar to the reference polygon's centroid.
 
 ```{r}
 mh_rep_raw <- terra::rast(list.files(file.path(tempdir(), "Mh_Raw"),  pattern = "\\.tif$", full.names = TRUE))
@@ -224,11 +226,12 @@ terra::plot(polygons[1,], add = TRUE, color= "transparent", lwd = 3)
 ```
 <img src="man/figures/F_5.jpeg" alt="cont_rep" width="600">
 
-*Figure 5: Example of continuous Mahalanobis distance raster for Pol_1. Darker shades indicate cells with climate conditions more similar to Pol_1.*
+*Figure 5: Example of continuous Mahalanobis Distance raster for Pol_1. Darker shades indicate cells with climate conditions more similar to Pol_1.*
 
-3. The `Representativeness` subfolder contains the **binary representativeness** rasters (`.tif`) for each input `polygon`, based on the threshold (`th`) applied to the raw Mahalanobis distance.
+3. The `Representativeness` subfolder contains the binary representativeness rasters (`.tif`) for each reference `polygon`, based on the threshold (`th`) applied to the raw Mahalanobis Distance.
 
-Cells are coded `1` for `representative` and `0` for not representetive.
+Cells are coded `1` for `Representative` and `0` for `Unsuitable`.
+
 ```{r}
 mh_rep_result <- terra::rast(list.files(file.path(tempdir(), "Representativeness"),  pattern = "\\.tif$", full.names = TRUE))
 terra::plot(mh_rep_result[[1]])
@@ -240,7 +243,7 @@ terra::plot(polygons[1,], add = TRUE, color= "transparent", lwd = 3)
 *Figure 6: Example of binary representativeness raster for Pol_1, showing cells classified as representetive (value 1).*
 
 ### 3. Estimate change in climate representativeness.
-To estimate how **Representativeness Changes**, a future climate scenario is required.
+To estimate how representativeness changes, a future climate scenario is required.
 
 In this example, a simple virtual future climate conditions (`SpatRaster`) are created by adding a constant value to the `r_clim_present_filtered` data:
 
@@ -252,13 +255,13 @@ terra::plot(r_clim_future)
 ```
 <img src="man/figures/F_7.jpeg" alt="Future Climate layers" width="600">
 
-*Figure 7: Example of simulated future climate variables.*
+*Figure 7: Example of simulated future climate variables (`r_clim_future`).*
 
-Use `mh_rep_ch` to compare representativeness between the `present_climate_variables` and `future_climate_variables` within the defined `study_area`. 
+Use `ClimaRep::mh_rep_ch()` to compare representativeness of a reference `polygon`, between the `present_climate_variables` and `future_climate_variables`. 
 
-This function calculates representativeness for each input `polygon` in both scenarios and determines cells where conditions:
+This function calculates representativeness for each reference `polygon` in both scenarios and determines cells where conditions:
 
-- **Retained** - Climate conditions that exist in both the current and future scenarios.
+- **Stable** - Climate conditions that exist in both the current and future scenarios.
 - **Lost** - Climate conditions that exist now but are no longer present in the future.
 - **Novel** - Climate conditions that are new and only appear in the future scenario.
 
@@ -296,10 +299,10 @@ list.files(tempdir())
 
 ```
 
-The `Change` subfolder contains binary rasters (`.tif`) for each input `polygon`, indicating the category of change.
+The `Change` subfolder contains binary rasters (`.tif`) for each reference `polygon`, indicating the category of change.
 
-- **0** - Non representetive
-- **1** - Retained
+- **0** - Unsuitable 
+- **1** - Stable
 - **2** - Lost
 - **3** - Novel
 
@@ -310,9 +313,9 @@ terra::plot(polygons[2,], add = TRUE, color= "transparent", lwd = 3)
 ```
 <img src="man/figures/F_8.jpeg" alt="Change_pol_2" width="600">
 
-*Figure 8: Example of change in representativeness for Pol_2, showing areas Non representetive (0), Retained (1), Lost (2), Novel (3).*
+*Figure 8: Example of change in representativeness for Pol_2, showing areas Unsuitable (0), Stable (1), Lost (2), Novel (3).*
 
-The `Charts` subfolder is updated or regenerated and contains **summary map** files (`.jpeg`) visualizing the change analysis results for each input `polygon`.
+The `Charts` subfolder is updated or regenerated and contains summary map files (`.jpeg`) visualizing the change analysis results for each reference `polygon`.
 
 ```{r}
 list.files(file.path(tempdir(), "Charts"))
@@ -320,9 +323,9 @@ list.files(file.path(tempdir(), "Charts"))
 ```
 <img src="man/figures/F_9.jpeg" alt="map_change_pol_2" width="600">
 
-*Figure 9: Example of summary maps illustrating climate representativeness change for Pol_2 (pol_2_rep_change.jpeg).*
+*Figure 9: Example of summary maps illustrating climate representativeness change for Pol_2 (`pol_2_rep_change.jpeg`).*
 
-The `Mh_Raw_Pre` subfolder contains the **continuous Mahalanobis distance** rasters (`.tif`) for the **present** scenario, calculated within the `study_area` extent relative to the climate conditions within each input `polygon`.
+The `Mh_Raw_Pre` subfolder contains the continuous Mahalanobis Distance rasters (`.tif`) for the **present** scenario, calculated within the `study_area` extent relative to the climate conditions within each reference `polygon`.
 
 ```{r}
 Mh_raw_Pre_result <- terra::rast(list.files(file.path(tempdir(), "Mh_Raw_Pre"),  pattern = "\\.tif$", full.names = TRUE))
@@ -332,9 +335,9 @@ terra::plot(polygons[2,], add = TRUE, color= "transparent", lwd = 3)
 
 <img src="man/figures/F_10.jpeg" alt="raw_pre_pol2" width="600">
 
-*Figure 10: Example continuous present-day Mahalanobis distance raster (within study area) for Pol_2.*
+*Figure 10: Example continuous present Mahalanobis Distance raster (within study area) for Pol_2.*
 
-The `Mh_Raw_Fut` subfolder contains the **continuous raw Mahalanobis distance** rasters (`.tif`) for the **future** scenario, calculated within the `study_area` extent relative to the climate conditions within each input `polygon`.
+The `Mh_Raw_Fut` subfolder contains the continuous raw Mahalanobis Distance rasters (`.tif`) for the **future** scenario, calculated within the `study_area` extent relative to the climate conditions within each reference `polygon`.
 
 ```{r}
 Mh_raw_Fut_result <- terra::rast(list.files(file.path(tempdir(), "Mh_Raw_Fut"),  pattern = "\\.tif$", full.names = TRUE))
@@ -344,12 +347,12 @@ terra::plot(polygons[2,], add = TRUE, color= "transparent", lwd = 3)
 
 <img src="man/figures/F_11.jpeg" alt="raw_fut_pol2" width="600">
 
-*Figure 11: Example continuous future Mahalanobis distance raster for Pol_2.*
+*Figure 11: Example continuous future Mahalanobis Distance raster for Pol_2.*
 
-### 4. Estimate Environmental Representativeness Overlay (rep_overlay)
-After obtaining the representativeness (`mh_rep`),  or change (`mh_rep_ch`), rasters for multiple polygons, you can combine them to visualize where different change types (**representetive / Retained, Lost, Novel**) accumulate. 
+### 4. Estimate environmental representativeness overlay.
+After obtaining the representativeness (`ClimaRep::mh_rep()`),  or change (`ClimaRep::mh_rep_ch()`), rasters for multiple reference `polygons`, it is possible to combine them and to identify where the different types of changes (representative/stable, lost, novel) are accumulated. 
 
-The `rep_overlay` function counting, for each cell, how many of the input rasters had a specific category value at that location.
+The `ClimaRep::rep_overlay()` function counting, for each cell, how many of the input rasters had a specific category value at that location.
 
 ```{r}
 ClimaRep_overlay <- rep_overlay(folder_path = file.path(tempdir(), "Change"),
@@ -357,7 +360,7 @@ ClimaRep_overlay <- rep_overlay(folder_path = file.path(tempdir(), "Change"),
 
 Processing 2 classification rasters from C:\Users\AppData\Local\Temp\RtmpY1rKKD/Change
 Calculating counts for category: Lost (value = 2) 
-Calculating counts for category: Retained (value = 1) 
+Calculating counts for category: Stable (value = 1) 
 Calculating counts for category: Novel (value = 3) 
 All processes were completed
 Output files saved in:  C:\Users\AppData\Local\Temp\RtmpY1rKKD/ClimaRep_overlay
@@ -367,7 +370,7 @@ terra::plotRGB(ClimaRep_overlay, stretch = "lin")
 
 <img src="man/figures/F_12.jpeg" alt="ClimaRep_overlay_1" width="600">
 
-*Figure 12: Visualisation of accumulated Lost (R), Retained (G) and Novel (B) cells.*
+*Figure 12: Visualisation of accumulated Lost (R), Stable (G) and Novel (B) cells for both reference `polygon`.*
 
 
 ```{r}
@@ -376,56 +379,56 @@ terra::plot(ClimaRep_overlay)
 
 <img src="man/figures/F_13.jpeg" alt="ClimaRep_overlay_2" width="600">
 
-*Figure 13: Example of accumulate Lost (1), Retained (2) or Novel (3) cells.*
+*Figure 13: Example of accumulate Lost (1), Stable (2) or Novel (3) cells for both reference `polygon`.*
 
 
-## Functions Reference
+## Functions reference
 
-**vif_filter()**
+**ClimaRep::vif_filter()**
 
 This function iteratively filters layers from a `SpatRaster` object by removing the one with the highest Variance Inflation Factor (VIF) that exceeds a specified threshold (`th`).
 
-`vif_filter(x, th)`
+`ClimaRep::vif_filter(x, th)`
 
 > `x`: A `SpatRaster` object with climate layers.
 
 > `th`: The VIF `threshold`.
 
-**mh_rep()**
+**ClimaRep::mh_rep()**
 
-This function calculates Mahalanobis-based Climate Representativeness for input polygon within a defined area.
+This function calculates climate representativeness for each reference polygon within a defined area.
 
-Representativeness is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (`climate_variables`), with the climate conditions within each specific input `polygon`. The CRS of `polygon` will be used as the reference system.
+Representativeness is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (`climate_variables`), with the climate conditions within each specific reference `polygon`. The CRS of `polygon` will be used as the reference system.
 
-`mh_rep(polygon, col_name, climate_variables, th, dir_output, save_raw)`
+`ClimaRep::mh_rep(polygon, col_name, climate_variables, th, dir_output, save_raw)`
 
 > `polygon`: An `sf` object containing the input polygon(s) for which representativeness will be assessed.
 
-> `col_name`: The `name` of the column in `polygon` that contains unique identifiers for each input `polygon`.
+> `col_name`: The `name` of the column in `polygon` that contains unique identifiers for each reference `polygon`.
 
 > `climate_variables`: A `SpatRaster` object with the climate layers (pre-filtered using `vif_filter`).
 
 > `study_area`: An `sf` object defining the overall study region.
 
-> `th`: The `threshold` for determining representativeness (e.g., 0.9 for the 90th percentile of distances within the input `polygon`).
+> `th`: The `threshold` for determining representativeness (e.g., 0.9 for the 90th percentile of distances within the reference `polygon`).
 
 > `dir_output`: Path to the `directory` where output rasters and charts will be saved. The directory will be created if it doesn't exist.
 
-> `save_raw`: Logical. If `TRUE`, saves the continuous Mahalanobis distance raster (`Mh_raw`) for each input `polygon`.
+> `save_raw`: Logical. If `TRUE`, saves the continuous Mahalanobis Distance raster (`Mh_raw`) for each reference `polygon`.
 
-**mh_rep_ch()**
+**ClimaRep::mh_rep_ch()**
 
-This function calculates Mahalanobis-based Climate Representativeness (or forward climate analogs) for input polygon across two time periods (present and future) within a defined area.
+This function calculates climate representativeness for each reference polygon across two time periods (present and future) within a defined area.
 
-The function identifies areas of climate representativeness **Retained**, **Lost**, or **Novel**.
+The function identifies areas of climate representativeness Stable, Lost, or Novel.
 
-Representativeness is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (`present_climate_variables` and `future_climate_variables`), with the climate conditions within each specific input `polygon`. The CRS of `polygon` will be used as the reference system.
+Representativeness change is assessed by comparing the multivariate climate conditions of each cell, of the reference climate space (`present_climate_variables` and `future_climate_variables`), with the climate conditions within each specific reference `polygon`. The CRS of `polygon` will be used as the reference system.
 
-`mh_rep_ch(polygon, col_name, present_climate_variables, future_climate_variables, study_area, th, model, year, dir_output, save_raw)`
+`ClimaRep::mh_rep_ch(polygon, col_name, present_climate_variables, future_climate_variables, study_area, th, model, year, dir_output, save_raw)`
 
 > `polygon`: An `sf` object containing the input polygon/s for which representativeness change will be assessed.
 
-> `col_name`: The `name` of the column in `polygon` that contains unique identifiers for each input `polygon`.
+> `col_name`: The `name` of the column in `polygon` that contains unique identifiers for each reference `polygon`.
 
 > `present_climate_variables`: A `SpatRaster` object with the present climate layers (pre-filtered using `vif_filter`).
 
@@ -433,7 +436,7 @@ Representativeness is assessed by comparing the multivariate climate conditions 
 
 > `study_area`: An `sf` object defining the overall study region.
 
-> `th`: The percentile `threshold` for determining representativeness in both scenarios (e.g., 0.9 for the 90th percentile of distances within the input `polygon`).
+> `th`: The percentile `threshold` for determining representativeness in both scenarios (e.g., 0.9 for the 90th percentile of distances within the reference `polygon`).
 
 > `model`: `Character string` identifying the climate model (e.g., "MIROC6"). This is used in output filenames for clear identification.
 
@@ -441,17 +444,18 @@ Representativeness is assessed by comparing the multivariate climate conditions 
 
 > `dir_output`: Path to the `directory` where output rasters and charts will be saved. The directory will be created if it doesn't exist.
 
-> `save_raw`: Logical. If `TRUE`, saves the continuous Mahalanobis distance rasters (`Mh_raw`) for both present and future scenarios within the study area extent.
+> `save_raw`: Logical. If `TRUE`, saves the continuous Mahalanobis Distance rasters (`Mh_raw`) for both present and future scenarios within the study area extent.
 
-**rep_overlay()**
+**ClimaRep::rep_overlay()**
 
-Combines multiple single-layer rasters (`tif`), outputs from `mh_rep` or `mh_rep_ch` for different input polygons, into a multi-layered `SpatRaster`.
+Combines multiple single-layer rasters (`tif`), outputs from `ClimaRep::mh_rep()` or `ClimaRep::mh_rep_ch()` for different input polygons, into a multi-layered `SpatRaster`.
 
-This function handles inputs from both `mh_rep` (which primarily contains **representetive** areas) and `mh_rep_ch` (which includes **Retained**, **Lost**, and **Novel** areas). The output layers consistently represent counts of each input.
+This function handles inputs from both `ClimaRep::mh_rep()` (which contains representetive and unsuitable cells) and `ClimaRep::mh_rep_ch()` (which includes Stable, Lost, and Novel cells). 
+The output layers consistently represent the accumulation of each input.
 
-`rep_overlay(folder_path, dir_output)`
+`ClimaRep::rep_overlay(folder_path, dir_output)`
 
-> `folder_path`: Character string. Path to the directory containing the input single-layer GeoTIFF classification rasters (outputs from `mh_rep_ch()` or `mh_rep()`).
+> `folder_path`: `Character string`. Path to the directory containing the input single-layer GeoTIFF classification rasters (outputs from `ClimaRep::mh_rep_ch()` or `ClimaRep::mh_rep()`).
 > `dir_output`: Path to the `directory` where output rasters will be saved. The directory will be created if it doesn't exist.
 
 ## Citation
@@ -464,10 +468,10 @@ If the package itself is formally cited (e.g., on CRAN), please include the pack
 
 > Mingarro & Lobo (2018) Environmental representativeness and the role of emitter and recipient areas in the future trajectory of a protected area under climate change. *Animal Biodiversity and Conservation*, 41(2): 333–344. doi.org/10.32800/abc.2018.41.0333
 
-> Farber & Kadmon (2003) Assessment of alternative approaches for bioclimatic modeling with special emphasis on the Mahalanobis distance. *Ecological Modelling*, 160: 115–130. doi:10.1016/S0304-3800(02)00327-7 
+> Farber & Kadmon (2003) Assessment of alternative approaches for bioclimatic modeling with special emphasis on the Mahalanobis Distance. *Ecological Modelling*, 160: 115–130. doi:10.1016/S0304-3800(02)00327-7 
 
 
-## Getting Help
+## Getting help
 
 If you encounter issues or have questions, please contact.
 

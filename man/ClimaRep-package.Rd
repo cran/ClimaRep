@@ -6,7 +6,7 @@
 \alias{ClimaRep}
 \title{ClimaRep: Estimating Climate Representativeness}
 \description{
-Offers tools to estimate the climate representativeness of defined areas and quantifies and analyzes its transformation under future climate change scenarios. Approaches described in Mingarro and Lobo (2018) \doi{10.32800/abc.2018.41.0333} and Mingarro and Lobo (2022) \doi{10.1017/S037689292100014X}.
+Offers tools to estimate the climate representativeness of reference polygons and quantifies its transformation under future climate change scenarios. Approaches described in Mingarro and Lobo (2018) \doi{10.32800/abc.2018.41.0333} and Mingarro and Lobo (2022) \doi{10.1017/S037689292100014X}.
 
 \subsection{Overview}{
 
@@ -31,7 +31,13 @@ https://github.com/MarioMingarro/ClimaRep
 }
 }
 \author{
-\strong{Maintainer}: Mario Mingarro Lopez \email{mario_mingarro@mncn.csic.es} (\href{https://orcid.org/0000-0003-3977-7944}{ORCID})
+\strong{Maintainer}: Mario Mingarro \email{mario_mingarro@mncn.csic.es} (\href{https://orcid.org/0000-0003-3977-7944}{ORCID})
+
+Other contributors:
+\itemize{
+  \item Gabriel del Barrio (\href{https://orcid.org/0000-0001-6146-9433}{ORCID}) [contributor]
+  \item Jorge M. Lobo (\href{https://orcid.org/0000-0002-3152-4769}{ORCID}) [contributor]
+}
 
 }
 \keyword{internal}
