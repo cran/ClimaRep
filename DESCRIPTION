@@ -1,6 +1,6 @@
 Package: ClimaRep
 Title: Estimating Climate Analogue Areas
-Version: 1.1
+Version: 1.2
 Authors@R: c(
     person(given = "Mario", 
             family = "Mingarro", 
@@ -23,7 +23,7 @@ Suggests: testthat (>= 3.0.0)
 Imports: ggplot2, terra, utils, stats, sf, tidyterra
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-06-22 11:32:38 UTC; mario
+Packaged: 2026-11-18 19:01:13 UTC; mario
 Author: Mario Mingarro [aut, cre] (ORCID:
     <https://orcid.org/0000-0003-3977-7944>),
   Gabriel del Barrio [aut] (ORCID:
@@ -31,4 +31,4 @@ Author: Mario Mingarro [aut, cre] (ORCID:
   Jorge M. Lobo [aut] (ORCID: <https://orcid.org/0000-0002-3152-4769>)
 Maintainer: Mario Mingarro <mario_mingarro@mncn.csic.es>
 Repository: CRAN
-Date/Publication: 2026-06-22 18:40:02 UTC
+Date/Publication: 2026-11-18 19:30:02 UTC
